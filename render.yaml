@@ -1,0 +1,48 @@
+# Render Blueprint for YOUPI PG. One Docker web service: the Next.js app is the public entry
+# point (/checkout/:id, /admin, /youpi.js and the /api proxy) and the payment core runs
+# privately inside the same container. See docs/DEPLOYMENT.md ("Deploy on Render").
+services:
+  - type: web
+    name: youpi-pg
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # SQLite lives on the attached disk, which needs a paid instance type. On the free plan the
+    # container filesystem is ephemeral: payments, devices and settings are lost on every restart.
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: youpi-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: YOUPI_BIND_HOST
+        value: 0.0.0.0
+      - key: SQLITE_DB_PATH
+        value: /app/data/youpi_pg.sqlite
+      - key: USE_SQLITE_FALLBACK
+        value: "true"
+      # Secrets: generated once by Render and kept across deploys.
+      - key: ENCRYPTION_MASTER_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      # Admin dashboard token (enter it when /admin asks). Read it from the Render dashboard.
+      - key: ADMIN_API_TOKEN
+        generateValue: true
+      # Payment behaviour
+      - key: YOUPI_UNIQUE_PAISE
+        value: "true"
+      # "true" = customers enter a name instead of a WhatsApp OTP (see docs/CONFIGURATION.md).
+      - key: YOUPI_GUEST_CHECKOUT
+        value: "true"
+      - key: YOUPI_ALLOW_DEV_TOOLS
+        value: "false"
+      - key: YOUPI_EXPOSE_DEV_OTP
+        value: "false"
+      # Origins allowed to embed the checkout iframe (your storefronts), space separated.
+      - key: CHECKOUT_FRAME_ANCESTORS
+        sync: false
